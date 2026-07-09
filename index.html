@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#f8f5f2">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Period Tracker">
+    <title>Period Tracker</title>
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
+    <link rel="icon" href="./assets/icon-192.png">
+    <link rel="stylesheet" href="./styles.css?v=6">
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar">
+        <div>
+          <h1>Period Tracker</h1>
+          <p id="nextSummary">选择日历日期，记录开始和结束</p>
+        </div>
+        <img class="app-icon" src="./assets/apple-touch-icon.png" alt="">
+      </header>
+
+      <section class="metrics" aria-label="周期摘要">
+        <article>
+          <span>经期</span>
+          <strong id="periodMetric">6天</strong>
+        </article>
+        <article>
+          <span>周期</span>
+          <strong id="cycleMetric">33天</strong>
+        </article>
+        <article>
+          <span>下次</span>
+          <strong id="nextMetric">--</strong>
+        </article>
+      </section>
+
+      <section class="calendar-panel">
+        <div class="monthbar">
+          <button class="icon-button" id="prevMonth" type="button" aria-label="上个月">‹</button>
+          <h2 id="monthTitle">本月</h2>
+          <button class="icon-button" id="nextMonth" type="button" aria-label="下个月">›</button>
+        </div>
+
+        <div class="week-row" aria-hidden="true">
+          <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+        </div>
+        <div class="calendar" id="calendar" aria-label="月历"></div>
+
+        <div class="legend">
+          <span><i class="dot actual"></i>实际经期</span>
+          <span><i class="dot predicted"></i>预计经期</span>
+          <span><i class="dot fertile"></i>排卵期</span>
+          <span><i class="dot ovulation"></i>排卵日</span>
+        </div>
+      </section>
+
+      <section class="timeline-panel">
+        <div class="section-heading">
+          <h2>记录</h2>
+          <button class="text-button" id="resetBtn" type="button">清空</button>
+        </div>
+        <div class="selection-card" id="selectionCard">
+          <span id="selectionLabel">点一个日期作为开始日</span>
+          <button class="text-button" id="cancelSelectionBtn" type="button">取消</button>
+        </div>
+        <ol class="period-list" id="periodList"></ol>
+      </section>
+    </main>
+
+    <script src="./app.js?v=6" defer></script>
+  </body>
+</html>

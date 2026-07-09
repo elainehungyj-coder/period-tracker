@@ -1,0 +1,402 @@
+:root {
+  color-scheme: light;
+  --bg: #f8f5f2;
+  --surface: #ffffff;
+  --surface-soft: #fbfaf8;
+  --ink: #262321;
+  --muted: #7d7770;
+  --line: #e7e0d8;
+  --actual: #c94a62;
+  --actual-soft: #f7d9df;
+  --predicted: #f1a6b6;
+  --predicted-soft: #fdebf0;
+  --fertile: #c7b9f2;
+  --fertile-soft: #f0ecff;
+  --ovulation: #7c5ac7;
+  --ovulation-soft: #e3dcff;
+  --focus: #1f2937;
+  --shadow: 0 24px 60px rgba(58, 45, 37, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  letter-spacing: 0;
+  font-weight: 400;
+}
+
+button {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1,
+h2,
+p {
+  margin: 0;
+}
+
+.app-shell {
+  width: min(100%, 560px);
+  margin: 0 auto;
+  padding: max(18px, env(safe-area-inset-top)) 16px calc(28px + env(safe-area-inset-bottom));
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 2px 18px;
+}
+
+h1 {
+  font-size: 30px;
+  line-height: 1.08;
+  font-weight: 500;
+}
+
+.topbar p {
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.app-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 15px;
+  box-shadow: 0 10px 22px rgba(38, 35, 33, 0.16);
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.metrics article,
+.calendar-panel,
+.timeline-panel {
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid rgba(231, 224, 216, 0.85);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.metrics article {
+  display: grid;
+  gap: 6px;
+  min-height: 74px;
+  padding: 12px;
+  border-radius: 18px;
+}
+
+.metrics span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.metrics strong {
+  font-size: 21px;
+  line-height: 1.1;
+  font-weight: 500;
+}
+
+.calendar-panel,
+.timeline-panel {
+  border-radius: 26px;
+  padding: 16px;
+}
+
+.timeline-panel {
+  margin-top: 12px;
+}
+
+.monthbar,
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.monthbar {
+  margin-bottom: 14px;
+}
+
+.monthbar h2,
+.section-heading h2 {
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: 500;
+}
+
+.icon-button {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--surface-soft);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  font-size: 28px;
+  line-height: 1;
+}
+
+.text-button {
+  background: transparent;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.week-row,
+.calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.week-row {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.calendar {
+  gap: 6px;
+}
+
+.day {
+  position: relative;
+  min-width: 0;
+  aspect-ratio: 1;
+  border-radius: 15px;
+  background: var(--surface-soft);
+  color: var(--ink);
+  border: 1px solid transparent;
+  display: grid;
+  place-items: center;
+  font-weight: 450;
+}
+
+.day span {
+  position: relative;
+  z-index: 1;
+}
+
+.day.muted {
+  opacity: 0.34;
+}
+
+.day.today {
+  border-color: var(--focus);
+}
+
+.day.selecting {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.day.actual {
+  background: var(--actual);
+  color: #fff;
+}
+
+.day.actual.preview {
+  background: var(--actual-soft);
+  color: #8b3043;
+  border-color: rgba(201, 74, 98, 0.28);
+}
+
+.day.predicted {
+  background: var(--predicted-soft);
+  color: #8b3043;
+  border-color: rgba(201, 74, 98, 0.18);
+}
+
+.day.fertile {
+  background: var(--fertile-soft);
+  color: #6650a7;
+}
+
+.day.ovulation {
+  background: var(--ovulation);
+  color: #fff;
+}
+
+.day[data-edge="start"]::before,
+.day[data-edge="end"]::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.day[data-edge="start"]::before {
+  left: 8px;
+}
+
+.day[data-edge="end"]::before {
+  right: 8px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-top: 15px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot.actual {
+  background: var(--actual);
+}
+
+.dot.predicted {
+  background: var(--predicted);
+}
+
+.dot.fertile {
+  background: var(--fertile);
+}
+
+.dot.ovulation {
+  background: var(--ovulation);
+}
+
+.selection-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  margin: 14px 0 10px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.selection-card.active {
+  color: var(--ink);
+  border-color: rgba(201, 74, 98, 0.32);
+  background: var(--predicted-soft);
+}
+
+.period-list {
+  display: grid;
+  gap: 8px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.period-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 52px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: var(--surface-soft);
+}
+
+.period-list div {
+  display: grid;
+  gap: 3px;
+}
+
+.period-list strong {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.period-list span,
+.empty-state {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.period-list button {
+  background: transparent;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.period-list .empty-state {
+  justify-content: center;
+}
+
+@media (max-width: 430px) {
+  .app-shell {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  h1 {
+    font-size: 28px;
+  }
+
+  .calendar-panel,
+  .timeline-panel {
+    padding: 13px;
+    border-radius: 22px;
+  }
+
+  .metrics article {
+    min-height: 68px;
+    padding: 10px;
+  }
+
+  .metrics strong {
+    font-size: 19px;
+  }
+
+  .calendar {
+    gap: 5px;
+  }
+
+  .day {
+    border-radius: 12px;
+    font-size: 14px;
+  }
+}
