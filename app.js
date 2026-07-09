@@ -9,6 +9,8 @@ let viewDate = new Date(today.getFullYear(), today.getMonth(), 1);
 let pendingStart = null;
 let selectedLogDate = null;
 let selectedSymptoms = new Set();
+let reminderEnabled = false;
+let lastReminderKey = "";
 let state = loadState();
 
 const els = {
@@ -24,6 +26,7 @@ const els = {
   logCard: document.querySelector("#logCard"),
   logDateLabel: document.querySelector("#logDateLabel"),
   noteInput: document.querySelector("#noteInput"),
+  reminderBtn: document.querySelector("#reminderBtn"),
   flowButtons: [...document.querySelectorAll("[data-flow]")],
   symptomButtons: [...document.querySelectorAll("[data-symptom]")]
 };
@@ -85,15 +88,20 @@ function loadUiDraft() {
     const isDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || "");
     return {
       pendingStart: isDate(draft?.pendingStart) ? draft.pendingStart : null,
-      selectedLogDate: isDate(draft?.selectedLogDate) ? draft.selectedLogDate : null
+      selectedLogDate: isDate(draft?.selectedLogDate) ? draft.selectedLogDate : null,
+      reminderEnabled: Boolean(draft?.reminderEnabled),
+      lastReminderKey: typeof draft?.lastReminderKey === "string" ? draft.lastReminderKey : ""
     };
   } catch {
-    return { pendingStart: null, selectedLogDate: null };
+    return { pendingStart: null, selectedLogDate: null, reminderEnabled: false, lastReminderKey: "" };
   }
 }
 
 function saveUiDraft() {
-  localStorage.setItem(uiStoreKey, JSON.stringify({ pendingStart, selectedLogDate }));
+  localStorage.setItem(
+    uiStoreKey,
+    JSON.stringify({ pendingStart, selectedLogDate, reminderEnabled, lastReminderKey })
+  );
 }
 
 function requestStoragePersistence() {
@@ -175,6 +183,17 @@ function pendingPreviewPeriod() {
   };
 }
 
+function autoCompletePendingPeriod() {
+  const preview = pendingPreviewPeriod();
+  if (!preview) return false;
+  if (daysBetween(today, parseDate(preview.end)) < 0) return false;
+  addPeriod(preview.start, preview.end);
+  selectedLogDate = preview.start;
+  pendingStart = null;
+  saveUiDraft();
+  return true;
+}
+
 function anchorPeriod() {
   return pendingPreviewPeriod() || latestPeriod();
 }
@@ -187,6 +206,55 @@ function nextPredictedStart() {
   let start = parseDate(latest.start);
   while (start < today) start = addDays(start, cycleLength);
   return start;
+}
+
+function predictedStartForToday() {
+  const { cycleLength } = cycleStats();
+  const latest = latestPeriod();
+  if (!latest) return null;
+
+  let start = parseDate(latest.start);
+  while (addDays(start, cycleLength) <= today) start = addDays(start, cycleLength);
+  return toKey(start) === toKey(today) ? start : null;
+}
+
+function hasRecordedThisMonth(date) {
+  return state.periods.some((period) => {
+    const start = parseDate(period.start);
+    return start.getFullYear() === date.getFullYear() && start.getMonth() === date.getMonth();
+  });
+}
+
+function reminderKey(date) {
+  return `${toKey(date)}-10`;
+}
+
+function showPeriodReminder(date) {
+  const title = "Period Tracker";
+  const body = "今天是预计经期开始日，记得记录一下。";
+  if ("Notification" in window && Notification.permission === "granted") {
+    new Notification(title, { body, tag: reminderKey(date) });
+    return;
+  }
+  alert(body);
+}
+
+function checkPeriodReminder() {
+  if (!reminderEnabled) return;
+  const predicted = predictedStartForToday();
+  if (!predicted || pendingStart || hasRecordedThisMonth(predicted)) return;
+  const now = new Date();
+  if (now.getHours() < 10) return;
+  const key = reminderKey(predicted);
+  if (lastReminderKey === key) return;
+  lastReminderKey = key;
+  saveUiDraft();
+  showPeriodReminder(predicted);
+}
+
+function scheduleReminderChecks() {
+  checkPeriodReminder();
+  window.setInterval(checkPeriodReminder, 60000);
 }
 
 function predictionAnchors() {
@@ -300,6 +368,8 @@ function renderMetrics() {
     ? `开始日 ${formatShort(pendingStart)}，请选择结束日`
     : "点一个日期作为开始日";
   els.selectionCard.classList.toggle("active", Boolean(pendingStart));
+  els.reminderBtn.textContent = reminderEnabled ? "提醒开" : "提醒关";
+  els.reminderBtn.classList.toggle("active", reminderEnabled);
 }
 
 function renderCalendar() {
@@ -406,6 +476,17 @@ document.querySelector("#cancelSelectionBtn").addEventListener("click", () => {
   render();
 });
 
+els.reminderBtn.addEventListener("click", async () => {
+  requestStoragePersistence();
+  if (!reminderEnabled && "Notification" in window && Notification.permission === "default") {
+    await Notification.requestPermission();
+  }
+  reminderEnabled = !reminderEnabled;
+  saveUiDraft();
+  renderMetrics();
+  checkPeriodReminder();
+});
+
 function saveCurrentLog() {
   if (!selectedLogDate) return;
   const flow = document.querySelector("[data-flow].active")?.dataset.flow || "无";
@@ -470,4 +551,8 @@ if ("serviceWorker" in navigator) {
 const uiDraft = loadUiDraft();
 pendingStart = uiDraft.pendingStart;
 selectedLogDate = uiDraft.selectedLogDate || uiDraft.pendingStart;
+reminderEnabled = uiDraft.reminderEnabled;
+lastReminderKey = uiDraft.lastReminderKey;
+autoCompletePendingPeriod();
+scheduleReminderChecks();
 render();
