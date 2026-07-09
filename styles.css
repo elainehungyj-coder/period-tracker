@@ -91,8 +91,7 @@ h1 {
 }
 
 .metrics article,
-.calendar-panel,
-.timeline-panel {
+.calendar-panel {
   background: rgba(255, 255, 255, 0.86);
   border: 1px solid rgba(231, 224, 216, 0.85);
   box-shadow: var(--shadow);
@@ -119,14 +118,14 @@ h1 {
   font-weight: 500;
 }
 
-.calendar-panel,
-.timeline-panel {
+.calendar-panel {
   border-radius: 26px;
   padding: 16px;
 }
 
 .timeline-panel {
-  margin-top: 12px;
+  margin-top: 10px;
+  padding: 2px 2px 0;
 }
 
 .monthbar,
@@ -146,6 +145,16 @@ h1 {
   font-size: 18px;
   line-height: 1.2;
   font-weight: 500;
+}
+
+.timeline-panel .section-heading {
+  margin: 0 2px 8px;
+  color: var(--muted);
+}
+
+.timeline-panel .section-heading h2 {
+  font-size: 15px;
+  font-weight: 400;
 }
 
 .icon-button {
@@ -315,31 +324,31 @@ h1 {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 48px;
-  margin: 14px 0 10px;
-  padding: 10px 12px;
-  border-radius: 16px;
-  background: var(--surface-soft);
-  border: 1px solid var(--line);
+  min-height: 38px;
+  margin: 0 0 8px;
+  padding: 7px 10px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.46);
+  border: 1px solid rgba(231, 224, 216, 0.7);
   color: var(--muted);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 400;
 }
 
 .selection-card.active {
   color: var(--ink);
-  border-color: rgba(201, 74, 98, 0.32);
-  background: var(--predicted-soft);
+  border-color: rgba(201, 74, 98, 0.22);
+  background: rgba(253, 235, 240, 0.55);
 }
 
 .log-card {
   display: grid;
-  gap: 10px;
-  margin-bottom: 10px;
-  padding: 12px;
-  border-radius: 18px;
-  background: var(--surface-soft);
-  border: 1px solid var(--line);
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 9px;
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.56);
+  border: 1px solid rgba(231, 224, 216, 0.72);
 }
 
 .log-card[hidden] {
@@ -352,24 +361,25 @@ h1 {
   justify-content: space-between;
   gap: 12px;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .segmented {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
-  padding: 4px;
-  border-radius: 14px;
-  background: #f2eee9;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 12px;
+  background: rgba(242, 238, 233, 0.72);
 }
 
 .segmented button,
 .chips button {
-  min-height: 36px;
-  border-radius: 11px;
+  min-height: 31px;
+  border-radius: 10px;
   background: transparent;
   color: var(--muted);
+  font-size: 13px;
   font-weight: 400;
 }
 
@@ -382,12 +392,12 @@ h1 {
 .chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 7px;
+  gap: 6px;
 }
 
 .chips button {
-  padding: 0 12px;
-  background: #f2eee9;
+  padding: 0 10px;
+  background: rgba(242, 238, 233, 0.68);
 }
 
 .chips button.active {
@@ -397,14 +407,15 @@ h1 {
 
 textarea {
   width: 100%;
-  min-height: 76px;
+  min-height: 58px;
   resize: vertical;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 10px 12px;
-  background: var(--surface);
+  border: 1px solid rgba(231, 224, 216, 0.78);
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.68);
   color: var(--ink);
   font: inherit;
+  font-size: 13px;
   outline: none;
 }
 
@@ -414,7 +425,7 @@ textarea:focus {
 
 .period-list {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -425,10 +436,10 @@ textarea:focus {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 52px;
-  padding: 10px 12px;
-  border-radius: 16px;
-  background: var(--surface-soft);
+  min-height: 42px;
+  padding: 8px 10px;
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.46);
 }
 
 .period-list div {
@@ -437,14 +448,14 @@ textarea:focus {
 }
 
 .period-list strong {
-  font-size: 15px;
-  font-weight: 500;
+  font-size: 13px;
+  font-weight: 400;
 }
 
 .period-list span,
 .empty-state {
   color: var(--muted);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .period-list button {
