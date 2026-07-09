@@ -1,4 +1,5 @@
 const storeKey = "period-tracker-v2";
+const uiStoreKey = "period-tracker-ui-v1";
 const legacyStoreKey = "gungu-period-tracker-v1";
 const today = startOfDay(new Date());
 const defaultPeriodLength = 6;
@@ -76,6 +77,28 @@ function normalizeState(input) {
 
 function saveState() {
   localStorage.setItem(storeKey, JSON.stringify(state));
+}
+
+function loadUiDraft() {
+  try {
+    const draft = JSON.parse(localStorage.getItem(uiStoreKey));
+    const isDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || "");
+    return {
+      pendingStart: isDate(draft?.pendingStart) ? draft.pendingStart : null,
+      selectedLogDate: isDate(draft?.selectedLogDate) ? draft.selectedLogDate : null
+    };
+  } catch {
+    return { pendingStart: null, selectedLogDate: null };
+  }
+}
+
+function saveUiDraft() {
+  localStorage.setItem(uiStoreKey, JSON.stringify({ pendingStart, selectedLogDate }));
+}
+
+function requestStoragePersistence() {
+  if (!navigator.storage?.persist) return;
+  navigator.storage.persist().catch(() => {});
 }
 
 function pad(value) {
@@ -241,9 +264,11 @@ function hasLog(key) {
 }
 
 function handleDayClick(key) {
+  requestStoragePersistence();
   if (!pendingStart) {
     pendingStart = key;
     selectedLogDate = key;
+    saveUiDraft();
     render();
     return;
   }
@@ -251,6 +276,7 @@ function handleDayClick(key) {
   addPeriod(pendingStart, key);
   selectedLogDate = pendingStart;
   pendingStart = null;
+  saveUiDraft();
   render();
 }
 
@@ -376,10 +402,11 @@ document.querySelector("#nextMonth").addEventListener("click", () => {
 
 document.querySelector("#cancelSelectionBtn").addEventListener("click", () => {
   pendingStart = null;
+  saveUiDraft();
   render();
 });
 
-document.querySelector("#saveLogBtn").addEventListener("click", () => {
+function saveCurrentLog() {
   if (!selectedLogDate) return;
   const flow = document.querySelector("[data-flow].active")?.dataset.flow || "无";
   state.logs[selectedLogDate] = {
@@ -388,23 +415,40 @@ document.querySelector("#saveLogBtn").addEventListener("click", () => {
     note: els.noteInput.value.trim()
   };
   saveState();
+  saveUiDraft();
+}
+
+document.querySelector("#saveLogBtn").addEventListener("click", () => {
+  saveCurrentLog();
   renderCalendar();
 });
 
 els.flowButtons.forEach((button) => {
   button.addEventListener("click", () => {
+    requestStoragePersistence();
     els.flowButtons.forEach((item) => item.classList.remove("active"));
     button.classList.add("active");
+    saveCurrentLog();
+    renderCalendar();
   });
 });
 
 els.symptomButtons.forEach((button) => {
   button.addEventListener("click", () => {
+    requestStoragePersistence();
     const symptom = button.dataset.symptom;
     if (selectedSymptoms.has(symptom)) selectedSymptoms.delete(symptom);
     else selectedSymptoms.add(symptom);
     button.classList.toggle("active", selectedSymptoms.has(symptom));
+    saveCurrentLog();
+    renderCalendar();
   });
+});
+
+els.noteInput.addEventListener("input", () => {
+  requestStoragePersistence();
+  saveCurrentLog();
+  renderCalendar();
 });
 
 document.querySelector("#resetBtn").addEventListener("click", () => {
@@ -413,6 +457,7 @@ document.querySelector("#resetBtn").addEventListener("click", () => {
   pendingStart = null;
   selectedLogDate = null;
   saveState();
+  localStorage.removeItem(uiStoreKey);
   render();
 });
 
@@ -422,4 +467,7 @@ if ("serviceWorker" in navigator) {
   });
 }
 
+const uiDraft = loadUiDraft();
+pendingStart = uiDraft.pendingStart;
+selectedLogDate = uiDraft.selectedLogDate || uiDraft.pendingStart;
 render();
