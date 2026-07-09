@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
     <link rel="icon" href="./assets/icon-192.png">
-    <link rel="stylesheet" href="./styles.css?v=6">
+    <link rel="stylesheet" href="./styles.css?v=7">
   </head>
   <body>
     <main class="app-shell">
@@ -67,10 +67,31 @@
           <span id="selectionLabel">点一个日期作为开始日</span>
           <button class="text-button" id="cancelSelectionBtn" type="button">取消</button>
         </div>
+        <div class="log-card" id="logCard" hidden>
+          <div class="log-heading">
+            <span id="logDateLabel">--</span>
+            <button class="text-button" id="saveLogBtn" type="button">保存</button>
+          </div>
+          <div class="segmented" id="flowGroup" role="group" aria-label="经量">
+            <button type="button" data-flow="无">无</button>
+            <button type="button" data-flow="少">少</button>
+            <button type="button" data-flow="中">中</button>
+            <button type="button" data-flow="多">多</button>
+          </div>
+          <div class="chips" id="symptomGroup" aria-label="状况">
+            <button type="button" data-symptom="腹痛">腹痛</button>
+            <button type="button" data-symptom="腰酸">腰酸</button>
+            <button type="button" data-symptom="头痛">头痛</button>
+            <button type="button" data-symptom="疲倦">疲倦</button>
+            <button type="button" data-symptom="情绪">情绪</button>
+            <button type="button" data-symptom="长痘">长痘</button>
+          </div>
+          <textarea id="noteInput" rows="3" placeholder="备注"></textarea>
+        </div>
         <ol class="period-list" id="periodList"></ol>
       </section>
     </main>
 
-    <script src="./app.js?v=6" defer></script>
+    <script src="./app.js?v=7" defer></script>
   </body>
 </html>

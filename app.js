@@ -6,6 +6,8 @@ const defaultCycleLength = 33;
 
 let viewDate = new Date(today.getFullYear(), today.getMonth(), 1);
 let pendingStart = null;
+let selectedLogDate = null;
+let selectedSymptoms = new Set();
 let state = loadState();
 
 const els = {
@@ -17,18 +19,24 @@ const els = {
   monthTitle: document.querySelector("#monthTitle"),
   periodList: document.querySelector("#periodList"),
   selectionLabel: document.querySelector("#selectionLabel"),
-  selectionCard: document.querySelector("#selectionCard")
+  selectionCard: document.querySelector("#selectionCard"),
+  logCard: document.querySelector("#logCard"),
+  logDateLabel: document.querySelector("#logDateLabel"),
+  noteInput: document.querySelector("#noteInput"),
+  flowButtons: [...document.querySelectorAll("[data-flow]")],
+  symptomButtons: [...document.querySelectorAll("[data-symptom]")]
 };
 
 function loadState() {
-  const empty = { periods: [] };
+  const empty = { periods: [], logs: {} };
   try {
     const saved = JSON.parse(localStorage.getItem(storeKey));
-    if (saved?.periods) return normalizeState(saved);
+    if (saved?.periods || saved?.logs) return normalizeState(saved);
 
     const legacy = JSON.parse(localStorage.getItem(legacyStoreKey));
     if (legacy?.lastStart) {
       return normalizeState({
+        logs: legacy.logs || {},
         periods: [
           {
             start: legacy.lastStart,
@@ -54,7 +62,16 @@ function normalizeState(input) {
       return { start: toKey(first), end: toKey(last) };
     })
     .sort((a, b) => parseDate(a.start) - parseDate(b.start));
-  return { periods };
+  const logs = {};
+  for (const [key, log] of Object.entries(input.logs || {})) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) continue;
+    logs[key] = {
+      flow: log.flow || "无",
+      symptoms: Array.isArray(log.symptoms) ? log.symptoms : [],
+      note: log.note || ""
+    };
+  }
+  return { periods, logs };
 }
 
 function saveState() {
@@ -218,14 +235,21 @@ function deletePeriod(startKey) {
   render();
 }
 
+function hasLog(key) {
+  const log = state.logs[key];
+  return Boolean(log && (log.flow !== "无" || log.symptoms.length || log.note));
+}
+
 function handleDayClick(key) {
   if (!pendingStart) {
     pendingStart = key;
+    selectedLogDate = key;
     render();
     return;
   }
 
   addPeriod(pendingStart, key);
+  selectedLogDate = pendingStart;
   pendingStart = null;
   render();
 }
@@ -281,10 +305,30 @@ function renderCalendar() {
     if (actual?.start === key) button.dataset.edge = "start";
     if (actual?.end === key) button.dataset.edge = "end";
     if (actual?.preview) button.classList.add("preview");
+    if (hasLog(key)) button.classList.add("logged");
 
     button.addEventListener("click", () => handleDayClick(key));
     els.calendar.append(button);
   }
+}
+
+function renderLogForm() {
+  if (!selectedLogDate) {
+    els.logCard.hidden = true;
+    return;
+  }
+
+  const log = state.logs[selectedLogDate] || { flow: "无", symptoms: [], note: "" };
+  selectedSymptoms = new Set(log.symptoms);
+  els.logCard.hidden = false;
+  els.logDateLabel.textContent = `${formatShort(selectedLogDate)} 状况`;
+  els.noteInput.value = log.note || "";
+  els.flowButtons.forEach((button) => {
+    button.classList.toggle("active", button.dataset.flow === log.flow);
+  });
+  els.symptomButtons.forEach((button) => {
+    button.classList.toggle("active", selectedSymptoms.has(button.dataset.symptom));
+  });
 }
 
 function renderList() {
@@ -316,6 +360,7 @@ function renderList() {
 function render() {
   renderMetrics();
   renderCalendar();
+  renderLogForm();
   renderList();
 }
 
@@ -334,10 +379,39 @@ document.querySelector("#cancelSelectionBtn").addEventListener("click", () => {
   render();
 });
 
+document.querySelector("#saveLogBtn").addEventListener("click", () => {
+  if (!selectedLogDate) return;
+  const flow = document.querySelector("[data-flow].active")?.dataset.flow || "无";
+  state.logs[selectedLogDate] = {
+    flow,
+    symptoms: [...selectedSymptoms],
+    note: els.noteInput.value.trim()
+  };
+  saveState();
+  renderCalendar();
+});
+
+els.flowButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    els.flowButtons.forEach((item) => item.classList.remove("active"));
+    button.classList.add("active");
+  });
+});
+
+els.symptomButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    const symptom = button.dataset.symptom;
+    if (selectedSymptoms.has(symptom)) selectedSymptoms.delete(symptom);
+    else selectedSymptoms.add(symptom);
+    button.classList.toggle("active", selectedSymptoms.has(symptom));
+  });
+});
+
 document.querySelector("#resetBtn").addEventListener("click", () => {
   if (!confirm("确定清空所有本地记录吗？")) return;
-  state = { periods: [] };
+  state = { periods: [], logs: {} };
   pendingStart = null;
+  selectedLogDate = null;
   saveState();
   render();
 });

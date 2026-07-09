@@ -260,6 +260,17 @@ h1 {
   right: 8px;
 }
 
+.day.logged::after {
+  content: "";
+  position: absolute;
+  bottom: 6px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.65;
+}
+
 .legend {
   display: flex;
   flex-wrap: wrap;
@@ -319,6 +330,86 @@ h1 {
   color: var(--ink);
   border-color: rgba(201, 74, 98, 0.32);
   background: var(--predicted-soft);
+}
+
+.log-card {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 12px;
+  border-radius: 18px;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+}
+
+.log-card[hidden] {
+  display: none;
+}
+
+.log-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.segmented {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+  padding: 4px;
+  border-radius: 14px;
+  background: #f2eee9;
+}
+
+.segmented button,
+.chips button {
+  min-height: 36px;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.segmented button.active {
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 8px 18px rgba(58, 45, 37, 0.08);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.chips button {
+  padding: 0 12px;
+  background: #f2eee9;
+}
+
+.chips button.active {
+  background: var(--fertile-soft);
+  color: #6650a7;
+}
+
+textarea {
+  width: 100%;
+  min-height: 76px;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px 12px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  outline: none;
+}
+
+textarea:focus {
+  border-color: rgba(124, 90, 199, 0.38);
 }
 
 .period-list {
