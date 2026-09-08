@@ -1,9 +1,9 @@
-const cacheName = "period-tracker-v9";
+const cacheName = "period-tracker-v10";
 const appShell = [
   "./",
   "./index.html",
-  "./styles.css?v=10",
-  "./app.js?v=10",
+  "./styles.css?v=11",
+  "./app.js?v=11",
   "./manifest.webmanifest",
   "./assets/apple-touch-icon.png",
   "./assets/icon-192.png",

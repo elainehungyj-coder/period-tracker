@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
     <link rel="icon" href="./assets/icon-192.png">
-    <link rel="stylesheet" href="./styles.css?v=10">
+    <link rel="stylesheet" href="./styles.css?v=11">
   </head>
   <body>
     <main class="app-shell">
@@ -55,6 +55,7 @@
           <span><i class="dot predicted"></i>预计经期</span>
           <span><i class="dot fertile"></i>排卵期</span>
           <span><i class="dot ovulation"></i>排卵日</span>
+          <span><i class="dot sex"></i>爱爱</span>
         </div>
       </section>
 
@@ -67,8 +68,13 @@
           </div>
         </div>
         <div class="selection-card" id="selectionCard">
-          <span id="selectionLabel">点一个日期作为开始日</span>
+          <span id="selectionLabel">点日期后选择记录类型</span>
           <button class="text-button" id="cancelSelectionBtn" type="button">取消</button>
+        </div>
+        <div class="date-actions" id="dateActions" hidden>
+          <button type="button" id="startPeriodBtn">设为开始</button>
+          <button type="button" id="endPeriodBtn">设为结束</button>
+          <button type="button" id="sexLogBtn">爱爱记录</button>
         </div>
         <div class="log-card" id="logCard" hidden>
           <div class="log-heading">
@@ -95,6 +101,6 @@
       </section>
     </main>
 
-    <script src="./app.js?v=10" defer></script>
+    <script src="./app.js?v=11" defer></script>
   </body>
 </html>

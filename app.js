@@ -7,7 +7,7 @@ const defaultCycleLength = 33;
 
 let viewDate = new Date(today.getFullYear(), today.getMonth(), 1);
 let pendingStart = null;
-let selectedLogDate = null;
+let selectedDate = null;
 let selectedSymptoms = new Set();
 let reminderEnabled = false;
 let lastReminderKey = "";
@@ -23,10 +23,14 @@ const els = {
   periodList: document.querySelector("#periodList"),
   selectionLabel: document.querySelector("#selectionLabel"),
   selectionCard: document.querySelector("#selectionCard"),
+  dateActions: document.querySelector("#dateActions"),
   logCard: document.querySelector("#logCard"),
   logDateLabel: document.querySelector("#logDateLabel"),
   noteInput: document.querySelector("#noteInput"),
   reminderBtn: document.querySelector("#reminderBtn"),
+  startPeriodBtn: document.querySelector("#startPeriodBtn"),
+  endPeriodBtn: document.querySelector("#endPeriodBtn"),
+  sexLogBtn: document.querySelector("#sexLogBtn"),
   flowButtons: [...document.querySelectorAll("[data-flow]")],
   symptomButtons: [...document.querySelectorAll("[data-symptom]")]
 };
@@ -72,7 +76,8 @@ function normalizeState(input) {
     logs[key] = {
       flow: log.flow || "无",
       symptoms: Array.isArray(log.symptoms) ? log.symptoms : [],
-      note: log.note || ""
+      note: log.note || "",
+      sex: Boolean(log.sex)
     };
   }
   return { periods, logs };
@@ -88,19 +93,21 @@ function loadUiDraft() {
     const isDate = (value) => /^\d{4}-\d{2}-\d{2}$/.test(value || "");
     return {
       pendingStart: isDate(draft?.pendingStart) ? draft.pendingStart : null,
-      selectedLogDate: isDate(draft?.selectedLogDate) ? draft.selectedLogDate : null,
+      selectedDate: isDate(draft?.selectedDate || draft?.selectedLogDate)
+        ? draft.selectedDate || draft.selectedLogDate
+        : null,
       reminderEnabled: Boolean(draft?.reminderEnabled),
       lastReminderKey: typeof draft?.lastReminderKey === "string" ? draft.lastReminderKey : ""
     };
   } catch {
-    return { pendingStart: null, selectedLogDate: null, reminderEnabled: false, lastReminderKey: "" };
+    return { pendingStart: null, selectedDate: null, reminderEnabled: false, lastReminderKey: "" };
   }
 }
 
 function saveUiDraft() {
   localStorage.setItem(
     uiStoreKey,
-    JSON.stringify({ pendingStart, selectedLogDate, reminderEnabled, lastReminderKey })
+    JSON.stringify({ pendingStart, selectedDate, reminderEnabled, lastReminderKey })
   );
 }
 
@@ -188,7 +195,7 @@ function autoCompletePendingPeriod() {
   if (!preview) return false;
   if (daysBetween(today, parseDate(preview.end)) < 0) return false;
   addPeriod(preview.start, preview.end);
-  selectedLogDate = preview.start;
+  selectedDate = preview.start;
   pendingStart = null;
   saveUiDraft();
   return true;
@@ -328,23 +335,37 @@ function deletePeriod(startKey) {
 
 function hasLog(key) {
   const log = state.logs[key];
-  return Boolean(log && (log.flow !== "无" || log.symptoms.length || log.note));
+  return Boolean(log && (log.flow !== "无" || log.symptoms.length || log.note || log.sex));
 }
 
 function handleDayClick(key) {
   requestStoragePersistence();
-  if (!pendingStart) {
-    pendingStart = key;
-    selectedLogDate = key;
-    saveUiDraft();
-    render();
-    return;
-  }
+  selectedDate = key;
+  saveUiDraft();
+  render();
+}
 
-  addPeriod(pendingStart, key);
-  selectedLogDate = pendingStart;
+function setPeriodStart() {
+  if (!selectedDate) return;
+  pendingStart = selectedDate;
+  saveUiDraft();
+  render();
+}
+
+function setPeriodEnd() {
+  if (!selectedDate) return;
+  const startKey = pendingStart || selectedDate;
+  addPeriod(startKey, selectedDate);
   pendingStart = null;
   saveUiDraft();
+  render();
+}
+
+function toggleSexLog() {
+  if (!selectedDate) return;
+  const log = state.logs[selectedDate] || { flow: "无", symptoms: [], note: "", sex: false };
+  state.logs[selectedDate] = { ...log, sex: !log.sex };
+  saveState();
   render();
 }
 
@@ -364,10 +385,16 @@ function renderMetrics() {
     els.nextSummary.textContent = `预计 ${formatShort(toKey(next))} 开始，约 ${daysLeft} 天后`;
   }
 
-  els.selectionLabel.textContent = pendingStart
-    ? `开始日 ${formatShort(pendingStart)}，请选择结束日`
-    : "点一个日期作为开始日";
-  els.selectionCard.classList.toggle("active", Boolean(pendingStart));
+  if (!selectedDate) {
+    els.selectionLabel.textContent = "点日期后选择记录类型";
+  } else if (pendingStart) {
+    els.selectionLabel.textContent = `${formatShort(selectedDate)} 已选，开始日 ${formatShort(pendingStart)}`;
+  } else {
+    els.selectionLabel.textContent = `${formatShort(selectedDate)} 已选`;
+  }
+  els.selectionCard.classList.toggle("active", Boolean(selectedDate));
+  els.dateActions.hidden = !selectedDate;
+  els.endPeriodBtn.disabled = !pendingStart;
   els.reminderBtn.textContent = reminderEnabled ? "提醒开" : "提醒关";
   els.reminderBtn.classList.toggle("active", reminderEnabled);
 }
@@ -394,6 +421,7 @@ function renderCalendar() {
 
     if (date.getMonth() !== viewDate.getMonth()) button.classList.add("muted");
     if (key === toKey(today)) button.classList.add("today");
+    if (selectedDate === key) button.classList.add("selected");
     if (pendingStart === key) button.classList.add("selecting");
     if (actual) button.classList.add("actual");
     else if (predicted) button.classList.add(predicted);
@@ -402,6 +430,7 @@ function renderCalendar() {
     if (actual?.end === key) button.dataset.edge = "end";
     if (actual?.preview) button.classList.add("preview");
     if (hasLog(key)) button.classList.add("logged");
+    if (state.logs[key]?.sex) button.classList.add("sex");
 
     button.addEventListener("click", () => handleDayClick(key));
     els.calendar.append(button);
@@ -409,16 +438,17 @@ function renderCalendar() {
 }
 
 function renderLogForm() {
-  if (!selectedLogDate) {
+  if (!selectedDate) {
     els.logCard.hidden = true;
     return;
   }
 
-  const log = state.logs[selectedLogDate] || { flow: "无", symptoms: [], note: "" };
+  const log = state.logs[selectedDate] || { flow: "无", symptoms: [], note: "", sex: false };
   selectedSymptoms = new Set(log.symptoms);
   els.logCard.hidden = false;
-  els.logDateLabel.textContent = `${formatShort(selectedLogDate)} 状况`;
+  els.logDateLabel.textContent = `${formatShort(selectedDate)} 状况`;
   els.noteInput.value = log.note || "";
+  els.sexLogBtn.classList.toggle("active", log.sex);
   els.flowButtons.forEach((button) => {
     button.classList.toggle("active", button.dataset.flow === log.flow);
   });
@@ -472,9 +502,14 @@ document.querySelector("#nextMonth").addEventListener("click", () => {
 
 document.querySelector("#cancelSelectionBtn").addEventListener("click", () => {
   pendingStart = null;
+  selectedDate = null;
   saveUiDraft();
   render();
 });
+
+els.startPeriodBtn.addEventListener("click", setPeriodStart);
+els.endPeriodBtn.addEventListener("click", setPeriodEnd);
+els.sexLogBtn.addEventListener("click", toggleSexLog);
 
 els.reminderBtn.addEventListener("click", async () => {
   requestStoragePersistence();
@@ -488,9 +523,11 @@ els.reminderBtn.addEventListener("click", async () => {
 });
 
 function saveCurrentLog() {
-  if (!selectedLogDate) return;
+  if (!selectedDate) return;
   const flow = document.querySelector("[data-flow].active")?.dataset.flow || "无";
-  state.logs[selectedLogDate] = {
+  const existing = state.logs[selectedDate] || {};
+  state.logs[selectedDate] = {
+    sex: Boolean(existing.sex),
     flow,
     symptoms: [...selectedSymptoms],
     note: els.noteInput.value.trim()
@@ -536,7 +573,7 @@ document.querySelector("#resetBtn").addEventListener("click", () => {
   if (!confirm("确定清空所有本地记录吗？")) return;
   state = { periods: [], logs: {} };
   pendingStart = null;
-  selectedLogDate = null;
+  selectedDate = null;
   saveState();
   localStorage.removeItem(uiStoreKey);
   render();
@@ -550,7 +587,7 @@ if ("serviceWorker" in navigator) {
 
 const uiDraft = loadUiDraft();
 pendingStart = uiDraft.pendingStart;
-selectedLogDate = uiDraft.selectedLogDate || uiDraft.pendingStart;
+selectedDate = uiDraft.selectedDate || uiDraft.pendingStart;
 reminderEnabled = uiDraft.reminderEnabled;
 lastReminderKey = uiDraft.lastReminderKey;
 autoCompletePendingPeriod();
