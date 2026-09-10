@@ -520,6 +520,20 @@ textarea:focus {
   font-weight: 400;
 }
 
+.backup-tools {
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid #e6e3e5;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.backup-tools summary { cursor: pointer; padding: 8px 0; }
+.backup-tools button { min-height: 44px; margin-right: 16px; }
+.backup-tools p { line-height: 1.6; overflow-wrap: anywhere; }
+.backup-tools p:empty { display: none; }
+
 .period-list .empty-state {
   justify-content: center;
 }

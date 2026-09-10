@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
     <link rel="icon" href="./assets/icon-192.png">
-    <link rel="stylesheet" href="./styles.css?v=11">
+    <link rel="stylesheet" href="./styles.css?v=12">
   </head>
   <body>
     <main class="app-shell">
@@ -98,9 +98,17 @@
           <textarea id="noteInput" rows="3" placeholder="备注"></textarea>
         </div>
         <ol class="period-list" id="periodList"></ol>
+        <details class="backup-tools">
+          <summary>資料備份</summary>
+          <button class="text-button" id="exportBackupBtn" type="button">匯出備份</button>
+          <button class="text-button" id="importBackupBtn" type="button">匯入備份</button>
+          <input id="backupFile" type="file" accept=".json,application/json" hidden>
+          <p id="backupStatus" role="status" aria-live="polite"></p>
+        </details>
       </section>
     </main>
 
-    <script src="./app.js?v=11" defer></script>
+    <script src="./backup.js?v=12" defer></script>
+    <script src="./app.js?v=12" defer></script>
   </body>
 </html>

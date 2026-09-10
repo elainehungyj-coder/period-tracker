@@ -579,6 +579,66 @@ document.querySelector("#resetBtn").addEventListener("click", () => {
   render();
 });
 
+const backupStatus = document.querySelector("#backupStatus");
+function createBackup() {
+  return {
+    app: "period-tracker", version: 1, exportedAt: new Date().toISOString(),
+    state: JSON.parse(JSON.stringify(state)), ui: loadUiDraft(),
+    originalStorage: Object.fromEntries([storeKey, uiStoreKey, legacyStoreKey]
+      .map(key => [key, localStorage.getItem(key)]))
+  };
+}
+
+document.querySelector("#exportBackupBtn").addEventListener("click", async () => {
+  try {
+    const backup = createBackup();
+    const file = new File([JSON.stringify(backup, null, 2)], `period-tracker-backup-${toKey(new Date())}.json`, { type: "application/json" });
+    if (navigator.canShare?.({ files: [file] })) {
+      await navigator.share({ files: [file], title: "Period Tracker 備份" });
+    } else {
+      const url = URL.createObjectURL(file);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = file.name;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }
+    backupStatus.textContent = `已準備 ${backup.state.periods.length} 筆經期、${Object.keys(backup.state.logs).length} 天的記錄。請確認備份已存入「檔案」。`;
+  } catch (error) {
+    backupStatus.textContent = error.name === "AbortError" ? "已取消匯出。" : "無法匯出備份，請重試。";
+  }
+});
+
+const backupFile = document.querySelector("#backupFile");
+document.querySelector("#importBackupBtn").addEventListener("click", () => backupFile.click());
+backupFile.addEventListener("change", async () => {
+  const file = backupFile.files[0];
+  if (!file) return;
+  try {
+    if (file.size > 10000000) throw Error("備份檔案過大，請確認選擇正確的 JSON 檔案。");
+    const backup = periodBackup.validate(JSON.parse(await file.text()));
+    const merged = periodBackup.merge(state, backup.state);
+    if (pendingStart && backup.ui.pendingStart && pendingStart !== backup.ui.pendingStart)
+      throw Error("兩份資料有不同的未完成經期，未匯入任何資料。請保留備份以便核對。");
+    if (!confirm(`合併備份中的 ${backup.state.periods.length} 筆經期及 ${Object.keys(backup.state.logs).length} 天的記錄？`)) return;
+    // Preserve both inputs before writing either active storage key.
+    localStorage.setItem("period-tracker-before-import", JSON.stringify(createBackup()));
+    localStorage.setItem("period-tracker-import-source", JSON.stringify(backup));
+    localStorage.setItem(storeKey, JSON.stringify(merged));
+    state = merged;
+    pendingStart = pendingStart || backup.ui.pendingStart || null;
+    saveUiDraft();
+    render();
+    backupStatus.textContent = "已合併備份，原有記錄已保留。";
+  } catch (error) {
+    backupStatus.textContent = error instanceof SyntaxError ? "無法讀取這個備份檔案。" : error.message;
+  } finally {
+    backupFile.value = "";
+  }
+});
+
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./service-worker.js");
