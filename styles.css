@@ -533,6 +533,10 @@ textarea:focus {
 .backup-tools button { min-height: 44px; margin-right: 16px; }
 .backup-tools p { line-height: 1.6; overflow-wrap: anywhere; }
 .backup-tools p:empty { display: none; }
+.backup-tools input { display: block; width: 100%; max-width: 320px; box-sizing: border-box; padding: 10px; font: inherit; border: 1px solid #d9d5d9; border-radius: 6px; }
+.backup-tools input[hidden] { display: none; }
+#appStatus { color: #963b50; font-size: 13px; line-height: 1.6; }
+#appStatus:empty { display: none; }
 
 .period-list .empty-state {
   justify-content: center;

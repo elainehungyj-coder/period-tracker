@@ -1,7 +1,7 @@
 const storeKey = "period-tracker-v2";
 const uiStoreKey = "period-tracker-ui-v1";
 const legacyStoreKey = "gungu-period-tracker-v1";
-const today = startOfDay(new Date());
+let today = startOfDay(new Date());
 const defaultPeriodLength = 6;
 const defaultCycleLength = 33;
 
@@ -11,6 +11,7 @@ let selectedDate = null;
 let selectedSymptoms = new Set();
 let reminderEnabled = false;
 let lastReminderKey = "";
+let storageReadError = false;
 let state = loadState();
 
 const els = {
@@ -54,12 +55,20 @@ function loadState() {
       });
     }
   } catch {
+    storageReadError = true;
     return empty;
   }
   return empty;
 }
 
 function normalizeState(input) {
+  const validDate = value => {
+    if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    return toKey(parseDate(value)) === value;
+  };
+  if (!Array.isArray(input.periods || []) || (input.periods || []).some(period =>
+    !period || !validDate(period.start) || !validDate(period.end))) throw Error("Invalid stored periods");
+  if (!input.logs || typeof input.logs !== "object" || Array.isArray(input.logs)) throw Error("Invalid stored logs");
   const periods = (input.periods || [])
     .filter((period) => period.start && period.end)
     .map((period) => {
@@ -72,7 +81,7 @@ function normalizeState(input) {
     .sort((a, b) => parseDate(a.start) - parseDate(b.start));
   const logs = {};
   for (const [key, log] of Object.entries(input.logs || {})) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) continue;
+    if (!validDate(key) || !log || typeof log !== "object") throw Error("Invalid stored log");
     logs[key] = {
       flow: log.flow || "无",
       symptoms: Array.isArray(log.symptoms) ? log.symptoms : [],
@@ -84,7 +93,16 @@ function normalizeState(input) {
 }
 
 function saveState() {
+  preserveBeforeWrite();
   localStorage.setItem(storeKey, JSON.stringify(state));
+  document.dispatchEvent(new Event("period-data-changed"));
+}
+
+function preserveBeforeWrite() {
+  if (storageReadError) throw Error("原有資料無法讀取，已暫停保存以保護記錄。請先匯出備份。");
+  const previous = localStorage.getItem(storeKey);
+  const ui = localStorage.getItem(uiStoreKey);
+  if (previous || ui) localStorage.setItem("period-tracker-last-saved", JSON.stringify({ state: previous, ui }));
 }
 
 function loadUiDraft() {
@@ -100,15 +118,36 @@ function loadUiDraft() {
       lastReminderKey: typeof draft?.lastReminderKey === "string" ? draft.lastReminderKey : ""
     };
   } catch {
+    storageReadError = true;
     return { pendingStart: null, selectedDate: null, reminderEnabled: false, lastReminderKey: "" };
   }
 }
 
 function saveUiDraft() {
+  if (storageReadError) throw Error("原有資料無法讀取，已暫停保存。請先匯出備份。");
   localStorage.setItem(
     uiStoreKey,
     JSON.stringify({ pendingStart, selectedDate, reminderEnabled, lastReminderKey })
   );
+  document.dispatchEvent(new Event("period-data-changed"));
+}
+
+function getReminderPlan() {
+  if (storageReadError) throw Error("資料讀取失敗，暫停同步提醒。");
+  const latest = anchorPeriod();
+  if (!latest) return [];
+  const { cycleLength } = cycleStats();
+  const now = new Date();
+  let next = addDays(parseDate(latest.start), cycleLength);
+  const plan = [];
+  for (let index = 0; index < 200; index += 1) {
+    const reminder = new Date(next.getFullYear(), next.getMonth(), next.getDate(), 10);
+    if (reminder > addDays(now, 799)) break;
+    if (reminder >= startOfDay(now) && !hasRecordedThisMonth(reminder)) plan.push(+reminder);
+    if (plan.length === 24) break;
+    next = addDays(next, cycleLength);
+  }
+  return plan;
 }
 
 function requestStoragePersistence() {
@@ -194,7 +233,7 @@ function autoCompletePendingPeriod() {
   const preview = pendingPreviewPeriod();
   if (!preview) return false;
   if (daysBetween(today, parseDate(preview.end)) < 0) return false;
-  addPeriod(preview.start, preview.end);
+  if (!addPeriod(preview.start, preview.end)) return false;
   selectedDate = preview.start;
   pendingStart = null;
   saveUiDraft();
@@ -210,9 +249,21 @@ function nextPredictedStart() {
   const latest = anchorPeriod();
   if (!latest) return null;
 
-  let start = parseDate(latest.start);
+  let start = addDays(parseDate(latest.start), cycleLength);
   while (start < today) start = addDays(start, cycleLength);
   return start;
+}
+
+function activePredictedPeriod() {
+  if (actualPeriodFor(today)) return null;
+  const { periodLength, cycleLength } = cycleStats();
+  const latest = latestPeriod();
+  if (!latest) return null;
+  let start = addDays(parseDate(latest.start), cycleLength);
+  while (addDays(start, cycleLength) <= today) start = addDays(start, cycleLength);
+  const end = addDays(start, periodLength - 1);
+  if (today < start || today > end) return null;
+  return { start: toKey(start), end: toKey(end) };
 }
 
 function predictedStartForToday() {
@@ -220,7 +271,7 @@ function predictedStartForToday() {
   const latest = latestPeriod();
   if (!latest) return null;
 
-  let start = parseDate(latest.start);
+  let start = addDays(parseDate(latest.start), cycleLength);
   while (addDays(start, cycleLength) <= today) start = addDays(start, cycleLength);
   return toKey(start) === toKey(today) ? start : null;
 }
@@ -236,17 +287,25 @@ function reminderKey(date) {
   return `${toKey(date)}-10`;
 }
 
-function showPeriodReminder(date) {
+async function showPeriodReminder(date) {
   const title = "Period Tracker";
   const body = "今天是预计经期开始日，记得记录一下。";
   if ("Notification" in window && Notification.permission === "granted") {
-    new Notification(title, { body, tag: reminderKey(date) });
-    return;
+    try {
+      const registration = await navigator.serviceWorker?.getRegistration();
+      if (registration) {
+        await registration.showNotification(title, { body, tag: reminderKey(date), icon: "./assets/icon-192.png" });
+        return;
+      }
+    } catch { /* Fall back to an in-app reminder if notifications are unavailable. */ }
   }
   alert(body);
 }
 
-function checkPeriodReminder() {
+let reminderInFlight = false;
+async function checkPeriodReminder() {
+  if (globalThis.periodPush?.enabled) return;
+  if (reminderInFlight) return;
   if (!reminderEnabled) return;
   const predicted = predictedStartForToday();
   if (!predicted || pendingStart || hasRecordedThisMonth(predicted)) return;
@@ -254,14 +313,28 @@ function checkPeriodReminder() {
   if (now.getHours() < 10) return;
   const key = reminderKey(predicted);
   if (lastReminderKey === key) return;
-  lastReminderKey = key;
-  saveUiDraft();
-  showPeriodReminder(predicted);
+  reminderInFlight = true;
+  try {
+    await showPeriodReminder(predicted);
+    lastReminderKey = key;
+    saveUiDraft();
+  } finally { reminderInFlight = false; }
 }
 
 function scheduleReminderChecks() {
-  checkPeriodReminder();
-  window.setInterval(checkPeriodReminder, 60000);
+  const refresh = () => {
+    const current = startOfDay(new Date());
+    const changed = toKey(current) !== toKey(today);
+    today = current;
+    const completed = !storageReadError && autoCompletePendingPeriod();
+    if (changed || completed) render();
+    if (!storageReadError) checkPeriodReminder();
+  };
+  window.setInterval(refresh, 60000);
+  window.addEventListener("pageshow", refresh);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") refresh();
+  });
 }
 
 function predictionAnchors() {
@@ -271,8 +344,13 @@ function predictionAnchors() {
 
   const anchors = [];
   let start = parseDate(latest.start);
-  while (start > addDays(today, -370)) start = addDays(start, -cycleLength);
-  while (start < addDays(today, 370)) {
+  const firstVisible = new Date(viewDate.getFullYear(), viewDate.getMonth(), -6);
+  const lastVisible = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 14);
+  // Navigation must not change the prediction model: find the first start
+  // shown in this view whether it is before or after the newest record.
+  while (start > firstVisible) start = addDays(start, -cycleLength);
+  while (start < firstVisible) start = addDays(start, cycleLength);
+  while (start < lastVisible) {
     anchors.push(start);
     start = addDays(start, cycleLength);
   }
@@ -317,17 +395,24 @@ function addPeriod(startKey, endKey) {
   const firstTime = first.getTime();
   const lastTime = last.getTime();
 
-  state.periods = state.periods.filter((existing) => {
+  const overlaps = state.periods.filter((existing) => {
     const existingStart = parseDate(existing.start).getTime();
     const existingEnd = parseDate(existing.end).getTime();
-    return existingEnd < firstTime || existingStart > lastTime;
+    return existingEnd >= firstTime && existingStart <= lastTime;
   });
+  if (overlaps.some(existing => existing.start !== period.start || existing.end !== period.end)) {
+    document.querySelector("#appStatus").textContent = "日期與已有經期重疊，原記錄已保留。請先核對開始和結束日期。";
+    return false;
+  }
+  if (overlaps.length) return true;
   state.periods.push(period);
   state = normalizeState(state);
   saveState();
+  return true;
 }
 
 function deletePeriod(startKey) {
+  if (!confirm(`刪除 ${startKey} 的經期記錄？`)) return;
   state.periods = state.periods.filter((period) => period.start !== startKey);
   saveState();
   render();
@@ -347,15 +432,19 @@ function handleDayClick(key) {
 
 function setPeriodStart() {
   if (!selectedDate) return;
+  if (pendingStart && pendingStart !== selectedDate && !confirm("更改尚未完成的經期開始日期？")) return;
   pendingStart = selectedDate;
   saveUiDraft();
   render();
 }
 
 function setPeriodEnd() {
-  if (!selectedDate) return;
-  const startKey = pendingStart || selectedDate;
-  addPeriod(startKey, selectedDate);
+  if (!selectedDate || !pendingStart) return;
+  if (selectedDate < pendingStart) {
+    document.querySelector("#appStatus").textContent = "結束日期不能早於開始日期。";
+    return;
+  }
+  if (!addPeriod(pendingStart, selectedDate)) return;
   pendingStart = null;
   saveUiDraft();
   render();
@@ -372,14 +461,17 @@ function toggleSexLog() {
 function renderMetrics() {
   const { periodLength, cycleLength } = cycleStats();
   const next = nextPredictedStart();
+  const activePrediction = activePredictedPeriod();
   els.periodMetric.textContent = `${periodLength}天`;
   els.cycleMetric.textContent = `${cycleLength}天`;
-  els.nextMetric.textContent = next ? formatShort(toKey(next)) : "--";
+  els.nextMetric.textContent = activePrediction ? "进行中" : next ? formatShort(toKey(next)) : "--";
 
   if (pendingStart) {
     els.nextSummary.textContent = "";
   } else if (!state.periods.length) {
     els.nextSummary.textContent = "选择开始日，再选择结束日";
+  } else if (activePrediction) {
+    els.nextSummary.textContent = `预计经期 ${formatShort(activePrediction.start)} - ${formatShort(activePrediction.end)}，尚未记录`;
   } else if (next) {
     const daysLeft = Math.max(0, daysBetween(next, today));
     els.nextSummary.textContent = `预计 ${formatShort(toKey(next))} 开始，约 ${daysLeft} 天后`;
@@ -394,8 +486,8 @@ function renderMetrics() {
   }
   els.selectionCard.classList.toggle("active", Boolean(selectedDate));
   els.dateActions.hidden = !selectedDate;
-  els.endPeriodBtn.disabled = !pendingStart;
-  els.reminderBtn.textContent = reminderEnabled ? "提醒开" : "提醒关";
+  els.endPeriodBtn.disabled = !pendingStart || selectedDate < pendingStart;
+  els.reminderBtn.textContent = reminderEnabled ? "開啟時提醒：開" : "開啟時提醒：關";
   els.reminderBtn.classList.toggle("active", reminderEnabled);
 }
 
@@ -459,7 +551,7 @@ function renderLogForm() {
 
 function renderList() {
   els.periodList.innerHTML = "";
-  const items = [...state.periods].sort((a, b) => parseDate(b.start) - parseDate(a.start)).slice(0, 8);
+  const items = [...state.periods].sort((a, b) => parseDate(b.start) - parseDate(a.start));
 
   if (!items.length) {
     const empty = document.createElement("li");
@@ -473,7 +565,7 @@ function renderList() {
     const item = document.createElement("li");
     item.innerHTML = `
       <div>
-        <strong>${formatShort(period.start)} - ${formatShort(period.end)}</strong>
+        <strong>${period.start.replaceAll("-", "/")} - ${formatShort(period.end)}</strong>
         <span>${periodLength(period)}天</span>
       </div>
       <button type="button" aria-label="删除 ${period.start}">删除</button>
@@ -626,6 +718,7 @@ backupFile.addEventListener("change", async () => {
     // Preserve both inputs before writing either active storage key.
     localStorage.setItem("period-tracker-before-import", JSON.stringify(createBackup()));
     localStorage.setItem("period-tracker-import-source", JSON.stringify(backup));
+    preserveBeforeWrite();
     localStorage.setItem(storeKey, JSON.stringify(merged));
     state = merged;
     pendingStart = pendingStart || backup.ui.pendingStart || null;
@@ -650,6 +743,10 @@ pendingStart = uiDraft.pendingStart;
 selectedDate = uiDraft.selectedDate || uiDraft.pendingStart;
 reminderEnabled = uiDraft.reminderEnabled;
 lastReminderKey = uiDraft.lastReminderKey;
-autoCompletePendingPeriod();
+if (!storageReadError) autoCompletePendingPeriod();
 scheduleReminderChecks();
 render();
+if (storageReadError) document.querySelector("#appStatus").textContent = "原有資料無法讀取，已暫停保存。請先匯出備份，保留原始資料。";
+window.addEventListener("error", () => {
+  document.querySelector("#appStatus").textContent = "操作未能完成。請先匯出備份並重新開啟；不要清除網站資料。";
+});

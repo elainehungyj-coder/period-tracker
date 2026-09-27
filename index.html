@@ -11,7 +11,7 @@
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
     <link rel="icon" href="./assets/icon-192.png">
-    <link rel="stylesheet" href="./styles.css?v=12">
+    <link rel="stylesheet" href="./styles.css?v=14">
   </head>
   <body>
     <main class="app-shell">
@@ -97,6 +97,7 @@
           </div>
           <textarea id="noteInput" rows="3" placeholder="备注"></textarea>
         </div>
+        <p id="appStatus" role="status" aria-live="polite"></p>
         <ol class="period-list" id="periodList"></ol>
         <details class="backup-tools">
           <summary>資料備份</summary>
@@ -108,7 +109,7 @@
       </section>
     </main>
 
-    <script src="./backup.js?v=12" defer></script>
-    <script src="./app.js?v=12" defer></script>
+    <script src="./backup.js?v=14" defer></script>
+    <script src="./app.js?v=14" defer></script>
   </body>
 </html>
